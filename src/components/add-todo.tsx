@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,7 +13,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Form,
@@ -24,40 +24,48 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import axios from "axios";
+import toast from "react-hot-toast";
 
 interface AddTodoProps {
-  trigger: React.ReactNode;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 // 1. Define the Zod schema for your form.
 const todoFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
-  dueDate: z.string().optional(),
 });
 
 type TodoFormValues = z.infer<typeof todoFormSchema>;
 
-export default function AddTodo({ trigger }: AddTodoProps) {
-  // 2. Initialize react-hook-form with the Zod resolver.
+export default function AddTodo({ isOpen, onClose }: AddTodoProps) {
+  const [isLoading, setIsLoading] = useState(false);
   const form = useForm<TodoFormValues>({
     resolver: zodResolver(todoFormSchema),
     defaultValues: {
       title: "",
       description: "",
-      dueDate: "",
     },
   });
 
   // 3. Handle form submission.
-  function onSubmit(values: TodoFormValues) {
-    // Replace with your own logic (e.g., API call).
-    console.log("New Todo:", values);
+  async function onSubmit(values: TodoFormValues) {
+    setIsLoading(true);
+    try {
+      await axios.post("/api/todos", values);
+      toast.success("Todo saved");
+      onClose();
+    } catch {
+      toast.error("Something went wrong, try again");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
-    <Dialog>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={() => onClose()}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Add a todo</DialogTitle>
@@ -105,26 +113,18 @@ export default function AddTodo({ trigger }: AddTodoProps) {
               )}
             />
 
-            {/* Due Date Field */}
-            <FormField
-              control={form.control}
-              name="dueDate"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Due Date</FormLabel>
-                  <FormControl>
-                    <Input type="date" placeholder="YYYY-MM-DD" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    Optional due date for this to-do.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
             <DialogFooter>
-              <Button type="submit">Save</Button>
+              <Button
+                disabled={isLoading}
+                variant={"outline"}
+                type="button"
+                onClick={onClose}
+              >
+                Cancel
+              </Button>
+              <Button disabled={isLoading} type="submit">
+                Save
+              </Button>
             </DialogFooter>
           </form>
         </Form>
